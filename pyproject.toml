@@ -1,0 +1,25 @@
+[tool.poetry]
+name = "data-redaction"
+version = "0.1.0"
+description = ""
+authors = ["prathamesh <prathamk@thoughtworks.com>"]
+readme = "README.md"
+packages = [{include = "data_redaction"}]
+
+[tool.poetry.dependencies]
+python = "==3.10.12"
+pytesseract = "^0.3.10"
+spacy = "^3.6.1"
+matplotlib = "^3.5.1"
+torch = "^2.0.0"
+torchvision = "^0.15.0"
+transformers = "^4.31.0"
+timm = "^0.9.5"
+deepdoctection = "^0.26"
+pdfplumber = "^0.10.2"
+pdf2image = "^1.16.3"
+joblib = "^1.3.2"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
