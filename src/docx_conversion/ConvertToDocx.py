@@ -1,3 +1,4 @@
+from docx import Document
 from matplotlib import pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 import deepdoctection as dd
@@ -8,20 +9,20 @@ import pdf2image
 import pytesseract
 from joblib import Parallel, delayed
 from tqdm import tqdm
+from src.utils import parse_pdf
+from pathlib import Path
+class ConvertToDocx:
+    def __init__(self, input_folder, output_docx_folder_path):
+        self.input_folder = input_folder
+        self.output_docx_folder_path = output_docx_folder_path
 
-
-class OCR:
-    def __init__(self,input_pdfs_folder,output_text_folder_path):
-        self.input_pdfs_folder = input_pdfs_folder
-        self.output_text_folder_path = output_text_folder_path
-
-        os.makedirs(output_text_folder_path, exist_ok=True)
+        os.makedirs(output_docx_folder_path, exist_ok=True)
 
         self.use_layout_detection = False # If false then plain tesseract would be used. Else layout detection is done
         self.model_for_layout_detection = 'detectron2' # 'table-transformer' or 'detectron2'
 
         if self.use_layout_detection:
-            self.annotated_pdf_folder_path = os.path.join(output_text_folder_path, 'annotated')
+            self.annotated_pdf_folder_path = os.path.join(output_docx_folder_path, 'annotated')
             os.makedirs(self.annotated_pdf_folder_path, exist_ok=True)
 
     def _build_deepdoctection_analyzer(self):
@@ -97,30 +98,73 @@ class OCR:
                 pdf_text += text
         return pdf_text
 
-    def _convert_pdf_to_text_hybrid_and_write(self,file_path) -> str:
+    def _convert_pdf_to_docx_and_write(self, file_path):
         # First check if the pdf is image based or text based
-        doc_text = self._extract_text_without_ocr(file_path)
-        if doc_text == '':
-            # pdf is image based, use OCR
-            doc_text = self._convert_pdf_to_text_ocr(file_path)
-        output_text_file_path = os.path.join(self.output_text_folder_path, os.path.basename(file_path).replace('.pdf', '.txt'))
-        with open(output_text_file_path, 'w') as f:
-            f.write(doc_text)
+        try:
+            parsed_pdf = parse_pdf(file_path)
+            if len(parsed_pdf) == 0:
+                # pdf is image based, use OCR
+                doc_text = self._convert_pdf_to_text_ocr(file_path)
+                document = Document()
+                document.add_paragraph(doc_text)
+            else:
+                document = Document()
+                for element in parsed_pdf:
+                    if type(element) == str:
+                        document.add_paragraph(element)
+                    elif type(element) == list:
+                        row_cnt = len(element)
+                        col_cnt = len(element[0])
+                        table = document.add_table(rows = row_cnt, cols = col_cnt)
+                        table.style = 'Table Grid'
+                        for row in range(row_cnt):
+                            for col in range(col_cnt):
+                                try:
+                                    cell_text = element[row][col]
+                                except:
+                                    cell_text  = ''
+                                table.cell(row, col).text = cell_text
 
-    def perform_ocr(self):
+            output_dir = self._get_and_create_relative_output_dir(file_path)
+            output_docs_file_path = os.path.join(output_dir,os.path.basename(file_path).replace('.pdf','.docx'))
+            document.save(output_docs_file_path)
+        except:
+            print("Could not convert PDF to DOCX. Skipping  " + file_path)
+
+    def _get_and_create_relative_output_dir(self, input_path):
+        # Creates output directories in out put folder relative to input path
+        relative_path = Path(input_path).parent.relative_to(self.input_folder)
+        output_docs_file_path = Path(self.output_docx_folder_path).joinpath(relative_path)
+        output_docs_file_path.mkdir(parents=True, exist_ok=True)
+        return str(output_docs_file_path)
+    def _convert_doc_to_docx_and_write(self, doc_file_path):
+        try:
+            output_dir = self._get_and_create_relative_output_dir(doc_file_path)
+            os.system(f'soffice --headless --convert-to docx "{doc_file_path}" --outdir "{output_dir}"')
+        except:
+            print("Could not convert DOC to DOCX. Skipping  " + doc_file_path)
+    def convert_to_docx(self):
+        # 1. Convert PDF files to docx
         Parallel(n_jobs=-1)(
-            delayed(self._convert_pdf_to_text_hybrid_and_write)(path) for path in
-            tqdm(glob.glob(self.input_pdfs_folder + '/*.pdf')))
+            delayed(self._convert_pdf_to_docx_and_write)(path) for path in
+            tqdm(glob.glob(self.input_folder + '/**/*.pdf',recursive=True),desc = 'Converting PDF to DOCX'))
 
+        # 2. Convert doc files to docx
+        Parallel(n_jobs=-1)(
+            delayed(self._convert_doc_to_docx_and_write)(path) for path in
+            tqdm(glob.glob(self.input_folder + '/**/*.doc',recursive=True),desc = 'Converting DOC to DOCX'))
 
+        # 3. copy docx files to output folder
+        for file_path in tqdm(glob.glob(self.input_folder + '/**/*.docx',recursive=True)):
+            output_dir = self._get_and_create_relative_output_dir(file_path)
+            os.system(f'cp "{file_path}" "{output_dir}"')
 
 if __name__ == '__main__':
-    experiment_name = '_plain_ocr'
-    input_pdfs_folder = '/Users/prathamesh/tw_projects/OpenNyAI/data/LLM/Contracts for Review'
-    output_text_folder_path = os.path.join(input_pdfs_folder,'output','text'+experiment_name)
+    input_pdfs_folder = '/Users/prathamesh/tw_projects/OpenNyAI/data/LLM/data_readaction/test'
+    output_text_folder_path = input_pdfs_folder+'_docx'
 
-    ocr = OCR(input_pdfs_folder,output_text_folder_path)
-    ocr.perform_ocr()
+    docx_converter = ConvertToDocx(input_pdfs_folder, output_text_folder_path)
+    docx_converter.convert_to_docx()
 
 
 

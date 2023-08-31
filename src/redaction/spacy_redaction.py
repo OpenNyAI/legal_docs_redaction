@@ -1,9 +1,14 @@
+from docx import Document
 from tqdm import tqdm
 import glob
 import spacy
 import pandas as pd
 from name_matching.name_matcher import NameMatcher
 import os
+from src.utils import parse_docx
+from docx.table import Table
+import copy
+from pathlib import Path
 
 class DataRedaction:
     def __init__(self,input_dir_path,redacted_output_path):
@@ -27,6 +32,7 @@ class DataRedaction:
                                       'SSK',
                                       'fuzzy_wuzzy_token_sort'])
         self.matching_threshold = 80 # match below this would be discarded
+        self.table_insertion_pattern = '\n\n####INSERT TABLE HERE####\n\n'
 
     def _redact_entity(self, ent,grouped_entities:dict,last_group_id) -> tuple[str,int]:
         if ent.label_ in self.entity_type_to_replace:
@@ -75,12 +81,18 @@ class DataRedaction:
 
         return grouped_entities
 
-    def _redact_extracted_entities_and_write(self, doc, entities, file_name):
+    def _redact_extracted_entities(self, doc, entities) -> tuple[str, pd.DataFrame]:
         redacted_text_map = {}
-        entity_groups = self._group_similar_names(entities)
+        try:
+            entity_groups = self._group_similar_names(entities)
+        except:
+            entity_groups = {}
         redacted_text = doc.text[0:entities[0].start_char]
         original_redacted_map = []
-        last_group_id = max(entity_groups.values()) + 1
+        if len(entity_groups.values()) > 0 :
+            last_group_id = max(entity_groups.values()) + 1
+        else:
+            last_group_id = 0
         for i, ent in enumerate(entities):
             if ent.label_ in self.entity_types_to_mask or ent.label_ in self.entity_type_to_replace:
 
@@ -90,7 +102,7 @@ class DataRedaction:
                 else:
                     redacted_entity_text, last_group_id = self._redact_entity(ent, entity_groups,last_group_id)
                     redacted_text_map[ent.text.lower().strip()+ent.label_] = redacted_entity_text
-                redacted_text = redacted_text + redacted_entity_text + "$%#" + ent.text+"$%#"
+                redacted_text = redacted_text + redacted_entity_text + " (((" + ent.text+"))) "
                 if i < len(entities) - 1:
                     redacted_text = redacted_text + doc.text[ent.end_char:entities[i + 1].start_char]
                 else:
@@ -101,28 +113,64 @@ class DataRedaction:
                                               "entity_type": ent.label_,
                                               "redacted_text": redacted_entity_text})
 
-
-        redaction_map_file_name = file_name.replace('.txt','_redaction_map.csv')
         original_redacted_df = pd.DataFrame(original_redacted_map)
-        original_redacted_df.to_csv(os.path.join(self.redacted_output_path ,redaction_map_file_name), index=False)
+        return redacted_text, original_redacted_df
 
-        redacted_file_name = file_name.replace('.txt', '_redacted.txt')
-        with open(os.path.join(self.redacted_output_path,redacted_file_name) , 'w') as f:
-            f.write(redacted_text)
+    def _get_and_create_relative_output_dir(self, input_path):
+        # Creates output directories in out put folder relative to input path
+        relative_path = Path(input_path).parent.relative_to(self.input_dir_path)
+        output_docs_file_path = Path(self.redacted_output_path).joinpath(relative_path)
+        output_docs_file_path.mkdir(parents=True, exist_ok=True)
+        return str(output_docs_file_path)
+    def _insert_tables_back(self, redacted_text, tables) -> Document:
+        redacted_doc = Document()
+        text_chunks = redacted_text.split(self.table_insertion_pattern)
+        if len(text_chunks) > 1:
+            for i in range(len(text_chunks)):
+                para = redacted_doc.add_paragraph(text_chunks[i])
+                if i < len(tables):
+                    new_table = copy.deepcopy(tables[i]._tbl)
+                    para._p.addnext(new_table)
+        else:
+            redacted_doc.add_paragraph(text_chunks[0])
 
-    def redact(self):
-        for file_path in tqdm(glob.glob(self.input_dir_path + '/*.txt'),desc = 'Data Redaction'):
-            text = open(file_path).read()
-            doc = self.nlp(text)
+        return redacted_doc
+
+
+    def redact_all_files_in_folder(self):
+        for file_path in tqdm( glob.glob(self.input_dir_path + '/**/*.docx',recursive=True),desc = 'Data Redaction'):
+            self.redact_one_file(file_path)
+
+    def redact_one_file(self,file_path):
+        try:
+            parsed_docx = parse_docx(file_path)
+            text_chunks = [i for i in parsed_docx if type(i) == str]
+            tables = [i for i in parsed_docx if type(i) == Table]
+            combined_text = self.table_insertion_pattern.join(text_chunks)
+            doc = self.nlp(combined_text)
             entities = [i for i in doc.ents]
             entities = sorted(entities, key=lambda x: x.start_char)
-            file_name = os.path.basename(file_path)
-            self._redact_extracted_entities_and_write(doc, entities,file_name)
+
+            redacted_text, original_redacted_df = self._redact_extracted_entities(doc, entities)
+
+            redacted_doc = self._insert_tables_back(redacted_text, tables)
+
+            output_dir = self._get_and_create_relative_output_dir(file_path)
+            output_doc_path = os.path.join(output_dir, os.path.basename(file_path).replace('.docx', '_redacted.docx'))
+            redacted_doc.save(output_doc_path)
+            redaction_map_file_name = os.path.basename(file_path).replace('.docx', '_redaction_map.csv')
+            original_redacted_df.to_csv(os.path.join(output_dir, redaction_map_file_name), index=False)
+        except:
+            print("Could not process " + file_path)
+
+
+
 
 
 if __name__ == '__main__':
-    input_dir_path = '/Users/prathamesh/tw_projects/OpenNyAI/data/LLM/Contracts for Review/output/test'
-    redacted_output_path = '/Users/prathamesh/tw_projects/OpenNyAI/data/LLM/Contracts for Review/output/test/redacted/'
+    input_dir_path = '/Users/prathamesh/tw_projects/OpenNyAI/data/LLM/data_readaction/test_docx'
+    redacted_output_path = input_dir_path + '_redacted'
     n = DataRedaction(input_dir_path, redacted_output_path)
-    n.redact()
+    n.redact_all_files_in_folder()
+    #n.redact_one_file('/Users/prathamesh/tw_projects/OpenNyAI/data/LLM/Legal Documents - Atreyo/KAPL Writ_Draft.docx')
 
