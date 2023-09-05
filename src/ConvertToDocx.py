@@ -9,7 +9,7 @@ import pdf2image
 import pytesseract
 from joblib import Parallel, delayed
 from tqdm import tqdm
-from src.utils import parse_pdf
+from utils import parse_pdf
 from pathlib import Path
 class ConvertToDocx:
     def __init__(self, input_folder, output_docx_folder_path):

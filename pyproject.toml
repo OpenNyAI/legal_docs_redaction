@@ -4,7 +4,6 @@ version = "0.1.0"
 description = ""
 authors = ["prathamesh <prathamk@thoughtworks.com>"]
 readme = "README.md"
-packages = [{include = "data_redaction"}]
 
 [tool.poetry.dependencies]
 python = "==3.10.12"

@@ -5,7 +5,7 @@ import spacy
 import pandas as pd
 from name_matching.name_matcher import NameMatcher
 import os
-from src.utils import parse_docx
+from utils import parse_docx
 from docx.table import Table
 import copy
 from pathlib import Path
