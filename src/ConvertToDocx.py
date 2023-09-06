@@ -1,7 +1,4 @@
 from docx import Document
-from matplotlib import pyplot as plt
-from matplotlib.backends.backend_pdf import PdfPages
-import deepdoctection as dd
 import glob
 import os
 import pdfplumber
@@ -9,8 +6,9 @@ import pdf2image
 import pytesseract
 from joblib import Parallel, delayed
 from tqdm import tqdm
-from utils import parse_pdf
+from utils import parse_pdf, sanitize_str
 from pathlib import Path
+import re
 class ConvertToDocx:
     def __init__(self, input_folder, output_docx_folder_path):
         self.input_folder = input_folder
@@ -18,57 +16,6 @@ class ConvertToDocx:
 
         os.makedirs(output_docx_folder_path, exist_ok=True)
 
-        self.use_layout_detection = False # If false then plain tesseract would be used. Else layout detection is done
-        self.model_for_layout_detection = 'detectron2' # 'table-transformer' or 'detectron2'
-
-        if self.use_layout_detection:
-            self.annotated_pdf_folder_path = os.path.join(output_docx_folder_path, 'annotated')
-            os.makedirs(self.annotated_pdf_folder_path, exist_ok=True)
-
-    def _build_deepdoctection_analyzer(self):
-        config_overwrite = ["USE_LAYOUT=False",
-                            "USE_TABLE_SEGMENTATION=False",
-                            "USE_TABLE_REFINEMENT=False"]
-
-        if self.use_layout_detection:
-            if self.model_for_layout_detection == 'table-transformer':
-                # Run pip install deepdoctection[pt]
-                config_overwrite = ["PT.LAYOUT.WEIGHTS=microsoft/table-transformer-detection/pytorch_model.bin",
-                                    "USE_TABLE_SEGMENTATION=True",
-                                    "PT.LAYOUT.PAD.TOP=1",
-                                    "PT.LAYOUT.PAD.RIGHT=1",
-                                    "PT.LAYOUT.PAD.BOTTOM=1",
-                                    "PT.LAYOUT.PAD.LEFT=1"]
-
-            elif self.model_for_layout_detection == 'detectron2':
-                config_overwrite = ["USE_LAYOUT=True",
-                                    "USE_TABLE_SEGMENTATION=True",
-                                    "USE_TABLE_REFINEMENT=True",
-                                    "TEXT_ORDERING.INCLUDE_RESIDUAL_TEXT_CONTAINER=True"]
-
-        analyzer = dd.get_dd_analyzer(config_overwrite=config_overwrite)
-        return analyzer
-    def _convert_pdf_to_text_ocr_with_layout_detection(self,analyzer, input_pdf_path,annotated_pdf_path)->str:
-        df = analyzer.analyze(path=input_pdf_path)
-        df.reset_state()
-
-        doc = iter(df)
-
-        doc_text = ''
-        pp = PdfPages(annotated_pdf_path)
-
-        for i,page in enumerate(doc):
-            fig = plt.figure(figsize=(25,17))
-            plt.axis('off')
-            plt.imshow(page.viz())
-
-            pp.savefig(fig)
-            plt.close(fig)
-            doc_text += page.text
-            if i > 10:
-                break
-        pp.close()
-        return doc_text
 
     def _extract_text_without_ocr(self,input_pdf_path) -> str:
         with pdfplumber.open(input_pdf_path) as pdf:
@@ -85,17 +32,12 @@ class ConvertToDocx:
         return pytesseract.image_to_string(image_bytes, lang=lang, config=custom_oem_psm_config)
 
     def _convert_pdf_to_text_ocr(self,pdf_path,lang = 'eng') -> str:
-        if self.use_layout_detection:
-            analyzer = self._build_deepdoctection_analyzer()
-            annotated_pdf_path = os.path.join(self.annotated_pdf_folder_path,os.path.basename(pdf_path))
-            pdf_text = self._convert_pdf_to_text_ocr_with_layout_detection(analyzer,pdf_path,annotated_pdf_path)
-        else:
-            # Use plain Tesseract
-            pdf_text = ''
-            pdf_images = self._get_images_from_pdf(pdf_path)
-            for image in pdf_images:
-                text = self._extract_text_from_image(image,lang=lang)
-                pdf_text += text
+        # Use plain Tesseract
+        pdf_text = ''
+        pdf_images = self._get_images_from_pdf(pdf_path)
+        for image in pdf_images:
+            text = self._extract_text_from_image(image,lang=lang)
+            pdf_text += text
         return pdf_text
 
     def _convert_pdf_to_docx_and_write(self, file_path):
@@ -106,12 +48,12 @@ class ConvertToDocx:
                 # pdf is image based, use OCR
                 doc_text = self._convert_pdf_to_text_ocr(file_path)
                 document = Document()
-                document.add_paragraph(doc_text)
+                document.add_paragraph(sanitize_str(doc_text))
             else:
                 document = Document()
                 for element in parsed_pdf:
                     if type(element) == str:
-                        document.add_paragraph(element)
+                        document.add_paragraph(sanitize_str(element))
                     elif type(element) == list:
                         row_cnt = len(element)
                         col_cnt = len(element[0])
@@ -139,10 +81,14 @@ class ConvertToDocx:
         return str(output_docs_file_path)
     def _convert_doc_to_docx_and_write(self, doc_file_path):
         try:
-            output_dir = self._get_and_create_relative_output_dir(doc_file_path)
+            output_dir = os.path.join(self.input_folder,self._get_and_create_relative_output_dir(doc_file_path))
             os.system(f'soffice --headless --convert-to docx "{doc_file_path}" --outdir "{output_dir}"')
         except:
             print("Could not convert DOC to DOCX. Skipping  " + doc_file_path)
+
+
+
+
     def convert_to_docx(self):
         # 1. Convert PDF files to docx
         Parallel(n_jobs=-1)(
@@ -150,9 +96,11 @@ class ConvertToDocx:
             tqdm(glob.glob(self.input_folder + '/**/*.pdf',recursive=True),desc = 'Converting PDF to DOCX'))
 
         # 2. Convert doc files to docx
-        Parallel(n_jobs=-1)(
-            delayed(self._convert_doc_to_docx_and_write)(path) for path in
-            tqdm(glob.glob(self.input_folder + '/**/*.doc',recursive=True),desc = 'Converting DOC to DOCX'))
+        # Parallel(n_jobs=-1)(
+        #     delayed(self._convert_doc_to_docx_and_write)(path) for path in
+        #     tqdm(glob.glob(self.input_folder + '/**/*.doc',recursive=True),desc = 'Converting DOC to DOCX'))
+        for file_path in tqdm(glob.glob(self.input_folder + '/**/*.doc',recursive=True),desc = 'Converting DOC to DOCX'):
+            self._convert_doc_to_docx_and_write(file_path)
 
         # 3. copy docx files to output folder
         for file_path in tqdm(glob.glob(self.input_folder + '/**/*.docx',recursive=True)):

@@ -29,7 +29,7 @@ RUN pip install --upgrade poetry && \
 COPY src ./src
 
 # Set appropriate permissions for the application directory
-RUN chmod 777 -R /app
+RUN chmod 777 -R /app/src
 
 # Define the command to run your application
 CMD ["/app/.venv/bin/python", "src/main.py"]

@@ -9,8 +9,8 @@ if __name__ == "__main__":
     output_folder_path = '/data/output'
 
     docx_folder_path = os.path.join(output_folder_path, 'docx')
-    docx_converter = ConvertToDocx(input_pdfs_folder, docx_folder_path)
-    docx_converter.convert_to_docx()
+    # docx_converter = ConvertToDocx(input_pdfs_folder, docx_folder_path)
+    # docx_converter.convert_to_docx()
 
     redacted_output_path = os.path.join(output_folder_path ,'redacted')
     n = DataRedaction(docx_folder_path, redacted_output_path)

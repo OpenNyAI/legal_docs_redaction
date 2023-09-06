@@ -6,6 +6,7 @@ from docx.oxml.table import CT_Tbl
 import docx
 from operator import itemgetter
 import pdfplumber
+import re
 def iter_docx_block_items(parent):
     if isinstance(parent, Document):
         parent_elm = parent.element.body
@@ -63,6 +64,10 @@ def parse_pdf(pdf_file_path) ->list:
                     parsed_pdf.append(cluster[0]['table'])
     return parsed_pdf
 
+def sanitize_str(s):
+    control_chars = "\x00-\x1f\x7f-\x9f"
+    control_char_re = re.compile("[%s]" % control_chars)
+    return control_char_re.sub("", s)
 
 if __name__ == "__main__":
     parse_pdf('/Users/prathamesh/tw_projects/OpenNyAI/data/LLM/Legal Documents - Atreyo/test1.pdf')

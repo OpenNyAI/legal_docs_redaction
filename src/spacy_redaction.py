@@ -5,7 +5,7 @@ import spacy
 import pandas as pd
 from name_matching.name_matcher import NameMatcher
 import os
-from utils import parse_docx
+from utils import parse_docx, sanitize_str
 from docx.table import Table
 import copy
 from pathlib import Path
@@ -127,12 +127,12 @@ class DataRedaction:
         text_chunks = redacted_text.split(self.table_insertion_pattern)
         if len(text_chunks) > 1:
             for i in range(len(text_chunks)):
-                para = redacted_doc.add_paragraph(text_chunks[i])
+                para = redacted_doc.add_paragraph(sanitize_str(text_chunks[i]))
                 if i < len(tables):
                     new_table = copy.deepcopy(tables[i]._tbl)
                     para._p.addnext(new_table)
         else:
-            redacted_doc.add_paragraph(text_chunks[0])
+            redacted_doc.add_paragraph(sanitize_str(text_chunks[0]))
 
         return redacted_doc
 
@@ -143,11 +143,15 @@ class DataRedaction:
 
     def redact_one_file(self,file_path):
         try:
+            print('starting parsing')
             parsed_docx = parse_docx(file_path)
+            print('done parsing')
             text_chunks = [i for i in parsed_docx if type(i) == str]
             tables = [i for i in parsed_docx if type(i) == Table]
             combined_text = self.table_insertion_pattern.join(text_chunks)
+            print('starting spacy doc')
             doc = self.nlp(combined_text)
+            print('done with spacy doc')
             entities = [i for i in doc.ents]
             entities = sorted(entities, key=lambda x: x.start_char)
 
