@@ -1,3 +1,5 @@
+import warnings
+
 from docx import Document
 from tqdm import tqdm
 import glob
@@ -9,7 +11,7 @@ from utils import parse_docx, sanitize_str
 from docx.table import Table
 import copy
 from pathlib import Path
-
+warnings.simplefilter(action='ignore', category=FutureWarning)
 class DataRedaction:
     def __init__(self,input_dir_path,redacted_output_path):
         self.entity_types_to_mask = ["DATE", "MONEY","PERCENT", "QUANTITY", "TIME"]
@@ -143,15 +145,11 @@ class DataRedaction:
 
     def redact_one_file(self,file_path):
         try:
-            print('starting parsing')
             parsed_docx = parse_docx(file_path)
-            print('done parsing')
             text_chunks = [i for i in parsed_docx if type(i) == str]
             tables = [i for i in parsed_docx if type(i) == Table]
             combined_text = self.table_insertion_pattern.join(text_chunks)
-            print('starting spacy doc')
             doc = self.nlp(combined_text)
-            print('done with spacy doc')
             entities = [i for i in doc.ents]
             entities = sorted(entities, key=lambda x: x.start_char)
 
