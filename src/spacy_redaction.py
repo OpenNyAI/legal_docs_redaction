@@ -7,7 +7,7 @@ import spacy
 import pandas as pd
 from name_matching.name_matcher import NameMatcher
 import os
-from utils import parse_docx, sanitize_str
+from utils import parse_docx, sanitize_str, split_text_into_chunks
 from docx.table import Table
 import copy
 from pathlib import Path
@@ -149,7 +149,11 @@ class DataRedaction:
             text_chunks = [i for i in parsed_docx if type(i) == str]
             tables = [i for i in parsed_docx if type(i) == Table]
             combined_text = self.table_insertion_pattern.join(text_chunks)
-            doc = self.nlp(combined_text)
+            text_chunks = split_text_into_chunks(combined_text)
+            doc_list = []
+            for chunk in text_chunks:
+                doc_list.append(self.nlp(chunk))
+            doc = spacy.tokens.Doc.from_docs(doc_list)
             entities = [i for i in doc.ents]
             entities = sorted(entities, key=lambda x: x.start_char)
 
@@ -164,15 +168,4 @@ class DataRedaction:
             original_redacted_df.to_csv(os.path.join(output_dir, redaction_map_file_name), index=False)
         except:
             print("Could not process " + file_path)
-
-
-
-
-
-if __name__ == '__main__':
-    input_dir_path = '/Users/prathamesh/tw_projects/OpenNyAI/data/LLM/data_readaction/test_docx'
-    redacted_output_path = input_dir_path + '_redacted'
-    n = DataRedaction(input_dir_path, redacted_output_path)
-    n.redact_all_files_in_folder()
-    #n.redact_one_file('/Users/prathamesh/tw_projects/OpenNyAI/data/LLM/Legal Documents - Atreyo/KAPL Writ_Draft.docx')
 

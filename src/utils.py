@@ -65,9 +65,24 @@ def parse_pdf(pdf_file_path) ->list:
     return parsed_pdf
 
 def sanitize_str(s):
-    control_chars = "\x00-\x1f\x7f-\x9f"
-    control_char_re = re.compile("[%s]" % control_chars)
-    return control_char_re.sub("", s)
+    s_filtered = re.sub(u'[^\u0020-\uD7FF\u0009\u000A\u000D\uE000-\uFFFD\U00010000-\U0010FFFF]+', '', s)
+    return s_filtered
+    # control_chars = "\x00-\x1f\x7f-\x9f"
+    # control_char_re = re.compile("[%s]" % control_chars)
+    # return control_char_re.sub("", s)
+
+def split_text_into_chunks(text, max_chunk_size=10000)->list[str]:
+    chunks_list = []
+    chunk = ''
+    paras = text.split('\n')
+    for para in paras:
+        if len(chunk) + len(para) > max_chunk_size:
+            chunks_list.append(chunk)
+            chunk = ''
+        chunk = chunk + para + '\n'
+    if chunk != '':
+        chunks_list.append(chunk)
+    return chunks_list
 
 if __name__ == "__main__":
     parse_pdf('/Users/prathamesh/tw_projects/OpenNyAI/data/LLM/Legal Documents - Atreyo/test1.pdf')

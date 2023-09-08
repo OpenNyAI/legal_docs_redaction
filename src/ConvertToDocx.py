@@ -103,16 +103,10 @@ class ConvertToDocx:
             self._convert_doc_to_docx_and_write(file_path)
 
         # 3. copy docx files to output folder
-        for file_path in tqdm(glob.glob(self.input_folder + '/**/*.docx',recursive=True)):
+        for file_path in tqdm(glob.glob(self.input_folder + '/**/*.docx',recursive=True),desc = "Copying DOCX files"):
             output_dir = self._get_and_create_relative_output_dir(file_path)
             os.system(f'cp "{file_path}" "{output_dir}"')
 
-if __name__ == '__main__':
-    input_pdfs_folder = '/Users/prathamesh/tw_projects/OpenNyAI/data/LLM/data_readaction/test'
-    output_text_folder_path = input_pdfs_folder+'_docx'
-
-    docx_converter = ConvertToDocx(input_pdfs_folder, output_text_folder_path)
-    docx_converter.convert_to_docx()
 
 
 
