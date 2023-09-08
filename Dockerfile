@@ -23,7 +23,7 @@ COPY pyproject.toml poetry.lock __init__.py ./
 # Install poetry and project dependencies
 RUN pip install --upgrade poetry && \
     poetry config virtualenvs.in-project true && \
-    poetry install --no-root --no-dev
+    poetry install --no-root --no-dev && rm -rf /root/.cache
 
 # Copy the application source code
 COPY src ./src
