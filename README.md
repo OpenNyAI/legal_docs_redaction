@@ -36,10 +36,16 @@ It is required to use a machine with at least 6GB RAM and 4 cores. Having more R
 ## 2.1 Windows Installation
 - Check if virtualization is enabled. [help](https://youtu.be/X2fKuPS3yIM) 
 - If not, enable it from BIOS. [help1](https://support.microsoft.com/en-us/windows/enable-virtualization-on-windows-11-pcs-c5578302-6e43-4b4b-a449-8ced115f58e1), [help2](https://www.simplilearn.com/enable-virtualization-windows-10-article)
+- Install WSL. Run following command in Command Prompt as Administrator:
+```bash
+wsl --install
+```
 - Install [podman](https://podman.io/)
 - start podman service.
-- Open Command Prompt as Administrator and run the following command:
-```podman pull opennyaiofficial/legal_docs_redaction:latest_intel```
+- Pull the docker image (7.5GB). Open Command Prompt as Administrator and run the following command:
+```bash
+podman pull opennyaiofficial/legal_docs_redaction:latest_intel
+```
 
 ## 2.2 Mac & Linux Installation
 - Install [colima](https://github.com/abiosoft/colima) using Homebrew. ```brew install colima```
