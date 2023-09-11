@@ -40,6 +40,17 @@ It is required to use a machine with at least 6GB RAM and 4 cores. Having more R
 ```bash
 wsl --install
 ```
+- Change the resouce allocation for WSL to 4GB RAM and 2 cores. Feel free to add more resources if you have them. Run following command in Command Prompt as Administrator: 
+```bash
+type > %UserProfile%/.wslconfig
+```
+Open this file and put following contents in the file:
+```
+[wsl2]
+memory=4GB
+processors=2
+```
+
 - Install [podman](https://podman.io/)
 - start podman service.
 - Pull the docker image (7.5GB). Open Command Prompt as Administrator and run the following command:
