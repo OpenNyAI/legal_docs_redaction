@@ -74,7 +74,8 @@ docker pull opennyaiofficial/legal_docs_redaction:latest_intel
 ```
 
 # 👩‍💻 3. Usage
-Run the following command in Command Prompt or Terminal:
+Put all the files to be redacted in a folder. Create an empty folder where all the redacted files will be put.
+Run the following command in Command Prompt or Terminal. Replace the input and output paths with the actual paths.
 ## 3.1 Windows or Linux or Intel Mac Usage
 ```bash
  podman run -v <input_folder_path>:/data/input -v <output_folder_path>:/data/output --rm opennyaiofficial/legal_docs_redaction:latest_intel
