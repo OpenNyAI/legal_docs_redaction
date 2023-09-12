@@ -48,14 +48,14 @@ Open this file and put following contents in the file:
 ```
 [wsl2]
 memory=4GB
-processors=2
+processors=4
 ```
 
 - Install [podman](https://podman.io/)
 - start podman service.
 - Pull the docker image (7.5GB). Open Command Prompt as Administrator and run the following command:
 ```bash
-podman pull opennyaiofficial/legal_docs_redaction:latest_intel
+podman pull docker.io/opennyaiofficial/legal_docs_redaction:latest_intel
 ```
 
 ## 2.2 Mac & Linux Installation
