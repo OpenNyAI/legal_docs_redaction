@@ -88,7 +88,9 @@ docker run -v <input_folder_path>:/data/input -v <output_folder_path>:/data/outp
 
 # 📝 4. Output
 Grab a coffee till the redaction is processing. Once it completes, you will see the redacted DOCX files in the output folder. The redacted files will have the same name as the input files.
-The output files can be opened in Microsoft Word and reviewed. You will also notice that there are csv files which 
+The output files can be opened in Microsoft Word and reviewed. You will also notice that there are csv files which have 2 columns: one shows original entity and second one shows redacted name.
+
+![Example redaction output](images/redaction_sample_output.png)
 
 # 5. FAQs
 ### 5.1 Is my data safe? Are the contents of my documents sent to cloud?
@@ -113,4 +115,4 @@ We use spacy models to identify entities and mask them. Spacy models can miss so
 Currently this is not implemented. Please share your requirements with Opennyai team and we will try to add them in the next release.
 
 # 6. Contact
-Please email to opennyai@googlegroups.
+Please email to opennyai@googlegroups.com
