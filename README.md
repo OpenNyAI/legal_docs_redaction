@@ -85,3 +85,32 @@ Run the following command in Command Prompt or Terminal. Replace the input and o
 ```bash
 docker run -v <input_folder_path>:/data/input -v <output_folder_path>:/data/output --rm opennyaiofficial/legal_docs_redaction:latest_mac
 ```
+
+# 📝 4. Output
+Grab a coffee till the redaction is processing. Once it completes, you will see the redacted DOCX files in the output folder. The redacted files will have the same name as the input files.
+The output files can be opened in Microsoft Word and reviewed. You will also notice that there are csv files which 
+
+# 5. FAQs
+### 5.1 Is my data safe? Are the contents of my documents sent to cloud?
+The entire redaction process happens on the machine where you install this tool. No data is sent outside the machine.
+
+### 5.2 Why is the redaction slow?
+The speed of redaction can be slow for scanned PDFs as OCR needs to be performed. Also, try giving more resources to the docker image. Refer to the installation section for more details.
+
+### 5.3 Some files are missing in the output which are present in input folder
+There can be errors while processing some files. Please share these with Opennyai team to see if we can find a fix for these.
+
+### 5.4 Formatting of the input files is lost in the output files
+Yes is this is the current implementation.
+
+### 5.5 How to add more entities to be redacted?
+Please share your requirements with Opennyai team and we will try to add them in the next release.
+
+### 5.6 Some entities are not redacted
+We use spacy models to identify entities and mask them. Spacy models can miss some entities. If you observe a pattern, please contact OpenNyAI team.
+
+### 5.7 May I add pattern based redaction?
+Currently this is not implemented. Please share your requirements with Opennyai team and we will try to add them in the next release.
+
+# 6. Contact
+Please email to opennyai@googlegroups.
