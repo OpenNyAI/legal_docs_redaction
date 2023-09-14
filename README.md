@@ -40,7 +40,7 @@ It is required to use a machine with at least 6GB RAM and 4 cores. Having more R
 ```bash
 wsl --install
 ```
-- Change the resouce allocation for WSL to 4GB RAM and 2 cores. Feel free to add more resources if you have them. Run following command in Command Prompt as Administrator: 
+- Change the resouce allocation for WSL to 4GB RAM and 4 cores. Feel free to add more resources if you have them. Run following command in Command Prompt as Administrator: 
 ```bash
 type > %UserProfile%/.wslconfig
 ```
@@ -97,7 +97,10 @@ The output files can be opened in Microsoft Word and reviewed. You will also not
 The entire redaction process happens on the machine where you install this tool. No data is sent outside the machine.
 
 ### 5.2 Why is the redaction slow?
-The speed of redaction can be slow for scanned PDFs as OCR needs to be performed. Also, try giving more resources to the docker image. Refer to the installation section for more details.
+Please check the following
+1) document formats: The speed of redaction can be slow for scanned PDFs as OCR needs to be performed. Input files with doc or docx are most preferred.
+2) resource allocation: Try giving more resources to the docker image. Refer to the installation section for more details.
+3) correct image: Please check if you are using correct version of the docker image. refer to section 3 Usage.
 
 ### 5.3 Some files are missing in the output which are present in input folder
 There can be errors while processing some files. Please share these with Opennyai team to see if we can find a fix for these.
