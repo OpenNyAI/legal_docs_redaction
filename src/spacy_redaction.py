@@ -12,6 +12,8 @@ from utils import parse_docx, sanitize_str, split_text_into_chunks
 from docx.table import Table
 import copy
 from pathlib import Path
+from sentinel_datetime import sentinel
+from dateutil import parser
 warnings.simplefilter(action='ignore', category=FutureWarning)
 class DataRedaction:
     def __init__(self,input_dir_path,redacted_output_path):
@@ -96,7 +98,7 @@ class DataRedaction:
 
         redacted_text = doc.text[0:entities[0].start_char]
 
-        paragraph = self.insert_table_if_needed(redacted_text, redacted_doc,paragraph, tables)
+        redacted_doc, paragraph, tables = self._insert_table_if_needed(redacted_text, redacted_doc, paragraph, tables)
 
         original_redacted_map = []
         if len(entity_groups.values()) > 0 :
@@ -104,7 +106,7 @@ class DataRedaction:
         else:
             last_group_id = 0
         for i, ent in enumerate(entities):
-            if ent.label_ in self.entity_types_to_mask or ent.label_ in self.entity_type_to_replace:
+            if (ent.label_ in self.entity_types_to_mask or ent.label_ in self.entity_type_to_replace) and self._validate_entity_text(ent):
 
                 text_based_replacement = redacted_text_map.get(ent.text.lower().strip()+ent.label_)
                 if text_based_replacement is not None:
@@ -121,7 +123,7 @@ class DataRedaction:
                 else:
                     text_till_next_entity = doc.text[entities[-1].end_char:]
 
-                paragraph = self.insert_table_if_needed(text_till_next_entity, redacted_doc,paragraph, tables)
+                redacted_doc, paragraph, tables = self._insert_table_if_needed(text_till_next_entity, redacted_doc, paragraph, tables)
                 original_redacted_map.append({"original_text": ent.text,
                                               "original_span": (ent.start_char, ent.end_char),
                                               "entity_type": ent.label_,
@@ -130,12 +132,12 @@ class DataRedaction:
             else:
                 # Add the entity text as it is
                 if i < len(entities) - 1:
-                    text_till_next_entity = doc.text[ent.end_char:entities[i + 1].start_char]
+                    text_till_next_entity = doc.text[ent.start_char:entities[i + 1].start_char]
 
                 else:
-                    text_till_next_entity = doc.text[entities[-1].end_char:]
+                    text_till_next_entity = doc.text[entities[-1].start_char:]
 
-                paragraph = self.insert_table_if_needed(text_till_next_entity, redacted_doc,paragraph, tables)
+                redacted_doc, paragraph,tables = self._insert_table_if_needed(text_till_next_entity, redacted_doc, paragraph, tables)
 
         original_redacted_df = pd.DataFrame(original_redacted_map)
         return redacted_doc, original_redacted_df
@@ -146,19 +148,6 @@ class DataRedaction:
         output_docs_file_path = Path(self.redacted_output_path).joinpath(relative_path)
         output_docs_file_path.mkdir(parents=True, exist_ok=True)
         return str(output_docs_file_path)
-    def _insert_tables_back(self, redacted_doc, tables) -> Document:
-        table_inserted_redacted_doc = Document()
-        text_chunks = redacted_text.split(self.table_insertion_pattern)
-        if len(text_chunks) > 1:
-            for i in range(len(text_chunks)):
-                para = table_inserted_redacted_doc.add_paragraph(sanitize_str(text_chunks[i]))
-                if i < len(tables):
-                    new_table = copy.deepcopy(tables[i]._tbl)
-                    para._p.addnext(new_table)
-        else:
-            table_inserted_redacted_doc.add_paragraph(sanitize_str(text_chunks[0]))
-
-        return table_inserted_redacted_doc
 
 
     def redact_all_files_in_folder(self):
@@ -192,7 +181,7 @@ class DataRedaction:
         # except:
         #     print("Could not process " + file_path)
 
-    def insert_table_if_needed(self, redacted_text, redacted_doc, paragraph, tables):
+    def _insert_table_if_needed(self, redacted_text, redacted_doc, paragraph, tables)-> tuple[Document, Paragraph,list]:
         if redacted_text.__contains__(self.table_insertion_pattern):
             text_chunks = redacted_text.split(self.table_insertion_pattern)
             for i in range(len(text_chunks)-1):
@@ -201,11 +190,24 @@ class DataRedaction:
 
                 if len(tables)>0:
                     new_table = copy.deepcopy(tables.pop()._tbl)
-                    paragraph_new = redacted_doc.add_paragraph('')
-                    paragraph_new._p.addnext(new_table)
+                    paragraph = redacted_doc.add_paragraph('')
+                    paragraph._p.addnext(new_table)
                     paragraph = redacted_doc.add_paragraph('')
 
         else:
             paragraph.add_run(sanitize_str(redacted_text))
-        return paragraph
+        return redacted_doc,paragraph,tables
+
+    def _validate_entity_text(self,entity)->bool:
+        if entity.label_ == 'DATE':
+            try:
+                parsed_date = parser.parse(entity.text, default=sentinel())
+                if parsed_date.has_year and parsed_date.has_month and parsed_date.has_day:
+                    return True
+                else:
+                    return False
+            except:
+                return False
+        else:
+            return True
 
