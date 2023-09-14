@@ -2128,6 +2128,20 @@ doc = ["jupytext", "matplotlib (>2)", "myst-nb", "numpydoc", "pooch", "pydata-sp
 test = ["asv", "gmpy2", "mpmath", "pooch", "pytest", "pytest-cov", "pytest-timeout", "pytest-xdist", "scikit-umfpack", "threadpoolctl"]
 
 [[package]]
+name = "sentinel-datetime"
+version = "0.0.4"
+description = "Sentinel Result Object for python-dateutil"
+optional = false
+python-versions = ">=3.6"
+files = [
+    {file = "sentinel-datetime-0.0.4.tar.gz", hash = "sha256:5a775d80010d6e474bdf24c1cde8fb5be3055c264ba0624ab2fe61db683f479c"},
+    {file = "sentinel_datetime-0.0.4-py3-none-any.whl", hash = "sha256:b777c3af81f8956967f49da1d70efd68061573ed2e502db13f1e3ba40911e8f6"},
+]
+
+[package.dependencies]
+python-dateutil = "*"
+
+[[package]]
 name = "setuptools"
 version = "68.1.2"
 description = "Easily download, build, install, upgrade, and uninstall Python packages"
@@ -2898,4 +2912,4 @@ test = ["pytest (>=6.0.0)", "setuptools (>=65)"]
 [metadata]
 lock-version = "2.0"
 python-versions = "==3.10.12"
-content-hash = "6dce42f82e4773d6aa4b79eb00ce1be21d92895d8887345359d8959a2618bd36"
+content-hash = "a171bc8984c5eb4df0041c2e0e99d11f348bffa4707d4edc4b39240730503d3f"
