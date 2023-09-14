@@ -1,6 +1,7 @@
 import warnings
 
 from docx import Document
+from docx.text.paragraph import Paragraph
 from tqdm import tqdm
 import glob
 import spacy
@@ -83,13 +84,20 @@ class DataRedaction:
 
         return grouped_entities
 
-    def _redact_extracted_entities(self, doc, entities) -> tuple[str, pd.DataFrame]:
+    def _redact_extracted_entities(self, doc, entities,tables) -> tuple[Document,pd.DataFrame]:
         redacted_text_map = {}
         try:
             entity_groups = self._group_similar_names(entities)
         except:
             entity_groups = {}
+
+        redacted_doc = Document()
+        paragraph = redacted_doc.add_paragraph('')
+
         redacted_text = doc.text[0:entities[0].start_char]
+
+        paragraph = self.insert_table_if_needed(redacted_text, redacted_doc,paragraph, tables)
+
         original_redacted_map = []
         if len(entity_groups.values()) > 0 :
             last_group_id = max(entity_groups.values()) + 1
@@ -104,19 +112,33 @@ class DataRedaction:
                 else:
                     redacted_entity_text, last_group_id = self._redact_entity(ent, entity_groups,last_group_id)
                     redacted_text_map[ent.text.lower().strip()+ent.label_] = redacted_entity_text
-                redacted_text = redacted_text + redacted_entity_text + " (((" + ent.text+"))) "
-                if i < len(entities) - 1:
-                    redacted_text = redacted_text + doc.text[ent.end_char:entities[i + 1].start_char]
-                else:
-                    redacted_text = redacted_text + doc.text[entities[-1].end_char:]
+                paragraph.add_run(redacted_entity_text).add_comment(ent.text)
 
+                #redacted_text = redacted_text + redacted_entity_text + " (((" + ent.text+"))) "
+                if i < len(entities) - 1:
+                    text_till_next_entity = doc.text[ent.end_char:entities[i + 1].start_char]
+
+                else:
+                    text_till_next_entity = doc.text[entities[-1].end_char:]
+
+                paragraph = self.insert_table_if_needed(text_till_next_entity, redacted_doc,paragraph, tables)
                 original_redacted_map.append({"original_text": ent.text,
                                               "original_span": (ent.start_char, ent.end_char),
                                               "entity_type": ent.label_,
                                               "redacted_text": redacted_entity_text})
 
+            else:
+                # Add the entity text as it is
+                if i < len(entities) - 1:
+                    text_till_next_entity = doc.text[ent.end_char:entities[i + 1].start_char]
+
+                else:
+                    text_till_next_entity = doc.text[entities[-1].end_char:]
+
+                paragraph = self.insert_table_if_needed(text_till_next_entity, redacted_doc,paragraph, tables)
+
         original_redacted_df = pd.DataFrame(original_redacted_map)
-        return redacted_text, original_redacted_df
+        return redacted_doc, original_redacted_df
 
     def _get_and_create_relative_output_dir(self, input_path):
         # Creates output directories in out put folder relative to input path
@@ -124,19 +146,19 @@ class DataRedaction:
         output_docs_file_path = Path(self.redacted_output_path).joinpath(relative_path)
         output_docs_file_path.mkdir(parents=True, exist_ok=True)
         return str(output_docs_file_path)
-    def _insert_tables_back(self, redacted_text, tables) -> Document:
-        redacted_doc = Document()
+    def _insert_tables_back(self, redacted_doc, tables) -> Document:
+        table_inserted_redacted_doc = Document()
         text_chunks = redacted_text.split(self.table_insertion_pattern)
         if len(text_chunks) > 1:
             for i in range(len(text_chunks)):
-                para = redacted_doc.add_paragraph(sanitize_str(text_chunks[i]))
+                para = table_inserted_redacted_doc.add_paragraph(sanitize_str(text_chunks[i]))
                 if i < len(tables):
                     new_table = copy.deepcopy(tables[i]._tbl)
                     para._p.addnext(new_table)
         else:
-            redacted_doc.add_paragraph(sanitize_str(text_chunks[0]))
+            table_inserted_redacted_doc.add_paragraph(sanitize_str(text_chunks[0]))
 
-        return redacted_doc
+        return table_inserted_redacted_doc
 
 
     def redact_all_files_in_folder(self):
@@ -144,10 +166,11 @@ class DataRedaction:
             self.redact_one_file(file_path)
 
     def redact_one_file(self,file_path):
-        try:
+        # try:
             parsed_docx = parse_docx(file_path)
             text_chunks = [i for i in parsed_docx if type(i) == str]
             tables = [i for i in parsed_docx if type(i) == Table]
+            tables.reverse()
             combined_text = self.table_insertion_pattern.join(text_chunks)
             text_chunks = split_text_into_chunks(combined_text)
             doc_list = []
@@ -157,15 +180,32 @@ class DataRedaction:
             entities = [i for i in doc.ents]
             entities = sorted(entities, key=lambda x: x.start_char)
 
-            redacted_text, original_redacted_df = self._redact_extracted_entities(doc, entities)
+            redacted_doc,original_redacted_df = self._redact_extracted_entities(doc, entities,tables)
 
-            redacted_doc = self._insert_tables_back(redacted_text, tables)
+            #redacted_doc = self._insert_tables_back(redacted_doc, tables)
 
             output_dir = self._get_and_create_relative_output_dir(file_path)
             output_doc_path = os.path.join(output_dir, os.path.basename(file_path).replace('.docx', '_redacted.docx'))
             redacted_doc.save(output_doc_path)
             redaction_map_file_name = os.path.basename(file_path).replace('.docx', '_redaction_map.csv')
             original_redacted_df.to_csv(os.path.join(output_dir, redaction_map_file_name), index=False)
-        except:
-            print("Could not process " + file_path)
+        # except:
+        #     print("Could not process " + file_path)
+
+    def insert_table_if_needed(self, redacted_text, redacted_doc, paragraph, tables):
+        if redacted_text.__contains__(self.table_insertion_pattern):
+            text_chunks = redacted_text.split(self.table_insertion_pattern)
+            for i in range(len(text_chunks)-1):
+                #paragraph = redacted_doc.add_paragraph(sanitize_str(text_chunks[i]))
+                paragraph.add_run(sanitize_str(text_chunks[i]))
+
+                if len(tables)>0:
+                    new_table = copy.deepcopy(tables.pop()._tbl)
+                    paragraph_new = redacted_doc.add_paragraph('')
+                    paragraph_new._p.addnext(new_table)
+                    paragraph = redacted_doc.add_paragraph('')
+
+        else:
+            paragraph.add_run(sanitize_str(redacted_text))
+        return paragraph
 

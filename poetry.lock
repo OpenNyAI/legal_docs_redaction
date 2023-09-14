@@ -12,6 +12,20 @@ files = [
 ]
 
 [[package]]
+name = "bayoo-docx"
+version = "0.2.20"
+description = "Create and update Microsoft Word .docx files."
+optional = false
+python-versions = "*"
+files = [
+    {file = "bayoo-docx-0.2.20.tar.gz", hash = "sha256:f9635728a625fbfdd998885eca3d321b54b9114aaf7cc45c7f59ef0df9a1bd10"},
+    {file = "bayoo_docx-0.2.20-py3-none-any.whl", hash = "sha256:799ebe491f715bcbaa437a0d4b2aabc82315f3da97a151d2dff126c08a24acda"},
+]
+
+[package.dependencies]
+lxml = ">=2.3.2"
+
+[[package]]
 name = "blis"
 version = "0.7.10"
 description = "The Blis BLAS-like linear algebra library, as a self-contained C-extension."
@@ -1773,19 +1787,6 @@ files = [
 six = ">=1.5"
 
 [[package]]
-name = "python-docx"
-version = "0.8.11"
-description = "Create and update Microsoft Word .docx files."
-optional = false
-python-versions = "*"
-files = [
-    {file = "python-docx-0.8.11.tar.gz", hash = "sha256:1105d233a0956dd8dd1e710d20b159e2d72ac3c301041b95f4d4ceb3e0ebebc4"},
-]
-
-[package.dependencies]
-lxml = ">=2.3.2"
-
-[[package]]
 name = "pytz"
 version = "2023.3"
 description = "World timezone definitions, modern and historical"
@@ -2897,4 +2898,4 @@ test = ["pytest (>=6.0.0)", "setuptools (>=65)"]
 [metadata]
 lock-version = "2.0"
 python-versions = "==3.10.12"
-content-hash = "17518a0a71331e22ac32783c87dea2ec813f411b427116db51aaccc6db7106d2"
+content-hash = "6dce42f82e4773d6aa4b79eb00ce1be21d92895d8887345359d8959a2618bd36"
