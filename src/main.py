@@ -3,11 +3,11 @@ from spacy_redaction import DataRedaction
 import os
 
 if __name__ == "__main__":
-    input_pdfs_folder = '/Users/prathamesh/tw_projects/OpenNyAI/data/LLM/data_readaction/test'
-    output_folder_path = '/Users/prathamesh/tw_projects/OpenNyAI/data/LLM/data_readaction/test_output'
+    # input_pdfs_folder = '/Users/prathamesh/tw_projects/OpenNyAI/data/LLM/data_readaction/test'
+    # output_folder_path = '/Users/prathamesh/tw_projects/OpenNyAI/data/LLM/data_readaction/test_output'
 
-    # input_pdfs_folder = '/data/input'
-    # output_folder_path = '/data/output'
+    input_pdfs_folder = '/data/input'
+    output_folder_path = '/data/output'
 
     docx_folder_path = os.path.join(output_folder_path, 'docx')
     docx_converter = ConvertToDocx(input_pdfs_folder, docx_folder_path)
